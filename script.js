@@ -4,18 +4,32 @@
 import * as THREE from 'three';
 
 document.addEventListener('DOMContentLoaded', () => {
-    initHero3D();
-    initMobileMenu();
-    initCustomCursor();
-    initSmoothScroll();
-    initStatsCounter();
-    initContactForm();
-    initScrollAnimations();
+initHero3D();
+initHeroParticles();
+initFloatingElements();
+initMobileMenu();
+initCustomCursor();
+initSmoothScroll();
+initStatsCounter();
+initContactForm();
+initScrollAnimations();
+initWorkSection3D();
+initMouseTrail();
 });
 
 // =====================================================
 // Hero 3D Scene with Interactive Torus
 // =====================================================
+
+// Global mouse tracking for 3D interactions
+let globalMouseX = 0;
+let globalMouseY = 0;
+
+document.addEventListener('mousemove', (e) => {
+globalMouseX = (e.clientX / window.innerWidth) * 2 - 1;
+globalMouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+}, { passive: true });
+
 function initHero3D() {
     const container = document.getElementById('hero-canvas');
     if (!container) return;
@@ -427,9 +441,255 @@ function initScrollAnimations() {
     }, observerOptions);
 
     animatedElements.forEach((el, index) => {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(30px)';
-        el.style.transition = `opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.1}s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.1}s`;
-        observer.observe(el);
-    });
+el.style.opacity = '0';
+el.style.transform = 'translateY(30px)';
+el.style.transition = `opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.1}s, transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) ${index * 0.1}s`;
+observer.observe(el);
+});
+}
+
+// =====================================================
+// Hero Particles - Floating Energy Orbs
+// =====================================================
+function initHeroParticles() {
+const container = document.getElementById('hero-particles');
+if (!container) return;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+// Create floating energy orbs
+const orbs = [];
+const orbGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+const orbColors = [0x00d4ff, 0x7c3aed, 0xffffff];
+
+for (let i = 0; i < 25; i++) {
+const color = orbColors[Math.floor(Math.random() * orbColors.length)];
+const orbMaterial = new THREE.MeshBasicMaterial({
+color: color,
+transparent: true,
+opacity: 0.3 + Math.random() * 0.3,
+blending: THREE.AdditiveBlending
+});
+
+const orb = new THREE.Mesh(orbGeometry, orbMaterial);
+
+// Random position in 3D space
+orb.position.x = (Math.random() - 0.5) * 12;
+orb.position.y = (Math.random() - 0.5) * 8;
+orb.position.z = (Math.random() - 0.5) * 6;
+
+// Store initial position and velocity
+orb.userData = {
+initialX: orb.position.x,
+initialY: orb.position.y,
+initialZ: orb.position.z,
+speed: 0.2 + Math.random() * 0.3,
+phase: Math.random() * Math.PI * 2,
+ampX: 0.5 + Math.random() * 1,
+ampY: 0.3 + Math.random() * 0.5
+};
+
+scene.add(orb);
+orbs.push(orb);
+}
+
+// Add subtle glow light
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+
+camera.position.z = 5;
+
+// Animation loop
+let animationId;
+const clock = new THREE.Clock();
+
+function animate() {
+animationId = requestAnimationFrame(animate);
+const elapsedTime = clock.getElapsedTime();
+
+orbs.forEach((orb) => {
+const data = orb.userData;
+
+// Floating motion
+orb.position.x = data.initialX + Math.sin(elapsedTime * data.speed + data.phase) * data.ampX;
+orb.position.y = data.initialY + Math.cos(elapsedTime * data.speed * 0.7 + data.phase) * data.ampY;
+
+// Mouse interaction - orbs move away from cursor
+const distToMouse = Math.sqrt(
+Math.pow(orb.position.x - globalMouseX * 5, 2) +
+Math.pow(orb.position.y - globalMouseY * 3, 2)
+);
+
+if (distToMouse < 2) {
+orb.material.opacity = Math.min(orb.material.opacity + 0.02, 0.8);
+orb.scale.setScalar(1.5);
+} else {
+orb.material.opacity = Math.max(orb.material.opacity - 0.01, 0.3);
+orb.scale.setScalar(1);
+}
+
+// Slow rotation
+orb.rotation.x += 0.01;
+orb.rotation.y += 0.01;
+});
+
+renderer.render(scene, camera);
+}
+
+animate();
+
+// Resize handler
+window.addEventListener('resize', () => {
+camera.aspect = container.clientWidth / container.clientHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(container.clientWidth, container.clientHeight);
+}, { passive: true });
+}
+
+// =====================================================
+// Floating Elements - 3D Cards that float
+// =====================================================
+function initFloatingElements() {
+const cards = document.querySelectorAll('.about-card, .service-card');
+
+cards.forEach((card, index) => {
+card.style.opacity = '0';
+card.style.transform = 'translateY(50px) rotateX(10deg)';
+card.style.transition = 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+card.style.transitionDelay = `${index * 0.1}s`;
+
+card.addEventListener('mouseenter', () => {
+card.style.transform = 'translateY(-10px) rotateX(0deg) scale(1.02)';
+card.style.boxShadow = '0 30px 60px rgba(0, 212, 255, 0.15)';
+});
+
+card.addEventListener('mouseleave', () => {
+card.style.transform = 'translateY(0) rotateX(0deg) scale(1)';
+card.style.boxShadow = '';
+});
+});
+
+// Reveal on scroll
+const observer = new IntersectionObserver((entries) => {
+entries.forEach(entry => {
+if (entry.isIntersecting) {
+entry.target.style.opacity = '1';
+entry.target.style.transform = 'translateY(0) rotateX(0deg)';
+observer.unobserve(entry.target);
+}
+});
+}, { threshold: 0.1 });
+
+cards.forEach(card => observer.observe(card));
+}
+
+// =====================================================
+// Work Section 3D - Project preview spheres
+// =====================================================
+function initWorkSection3D() {
+const workItems = document.querySelectorAll('.work-item');
+
+workItems.forEach((item) => {
+const placeholder = item.querySelector('.work-placeholder');
+if (!placeholder) return;
+
+// Add 3D tilt effect
+item.addEventListener('mousemove', (e) => {
+const rect = item.getBoundingClientRect();
+const x = (e.clientX - rect.left) / rect.width - 0.5;
+const y = (e.clientY - rect.top) / rect.height - 0.5;
+
+item.style.transform = `perspective(1000px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg) translateZ(20px)`;
+});
+
+item.addEventListener('mouseleave', () => {
+item.style.transform = 'perspective(1000px) rotateY(0) rotateX(0) translateZ(0)';
+});
+
+// Add glow effect on hover
+item.addEventListener('mouseenter', () => {
+placeholder.style.filter = 'brightness(1.2) saturate(1.2)';
+});
+
+item.addEventListener('mouseleave', () => {
+placeholder.style.filter = '';
+});
+});
+}
+
+// =====================================================
+// Mouse Trail - Glowing trail following cursor
+// =====================================================
+function initMouseTrail() {
+if (window.matchMedia('(pointer: coarse)').matches) return;
+
+const trail = [];
+const maxTrail = 20;
+const colors = ['#00d4ff', '#7c3aed', '#ffffff'];
+
+// Create trail elements
+for (let i = 0; i < maxTrail; i++) {
+const dot = document.createElement('div');
+dot.style.position = 'fixed';
+dot.style.width = '6px';
+dot.style.height = '6px';
+dot.style.borderRadius = '50%';
+dot.style.pointerEvents = 'none';
+dot.style.zIndex = '9998';
+dot.style.opacity = '0';
+dot.style.transition = 'opacity 0.3s';
+dot.style.background = colors[i % colors.length];
+dot.style.boxShadow = `0 0 10px ${colors[i % colors.length]}`;
+document.body.appendChild(dot);
+
+trail.push({
+element: dot,
+x: 0,
+y: 0
+});
+}
+
+let mouseX = 0;
+let mouseY = 0;
+
+document.addEventListener('mousemove', (e) => {
+mouseX = e.clientX;
+mouseY = e.clientY;
+
+// Show trail
+if (trail[0].element.style.opacity === '0') {
+trail.forEach(t => t.element.style.opacity = '0.6');
+}
+}, { passive: true });
+
+// Animation loop for trail
+function animateTrail() {
+for (let i = trail.length - 1; i > 0; i--) {
+trail[i].x += (trail[i - 1].x - trail[i].x) * 0.3;
+trail[i].y += (trail[i - 1].y - trail[i].y) * 0.3;
+trail[i].element.style.left = trail[i].x + 'px';
+trail[i].element.style.top = trail[i].y + 'px';
+trail[i].element.style.opacity = (1 - i / maxTrail) * 0.6;
+}
+
+trail[0].x = mouseX;
+trail[0].y = mouseY;
+trail[0].element.style.left = mouseX + 'px';
+trail[0].element.style.top = mouseY + 'px';
+
+requestAnimationFrame(animateTrail);
+}
+
+animateTrail();
+
+// Hide trail when mouse leaves window
+document.addEventListener('mouseleave', () => {
+trail.forEach(t => t.element.style.opacity = '0');
+});
 }
